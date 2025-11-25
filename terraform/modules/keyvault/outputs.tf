@@ -15,5 +15,5 @@ output "keyvault_uri" {
 
 output "ssh_private_key_secret_id" {
   description = "ID of the SSH private key secret"
-  value       = length(azurerm_key_vault_secret.ssh_private_key) > 0 ? azurerm_key_vault_secret.ssh_private_key[0].id : null
+  value       = try(azurerm_key_vault_secret.ssh_private_key[0].id, null)
 }

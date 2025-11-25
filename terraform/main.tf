@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 
   backend "azurerm" {}
@@ -35,7 +39,14 @@ locals {
   location_code       = lookup(local.location_short, var.location, substr(var.location, 0, 3))
   resource_group_name = "rg-${var.workflow_name}-${local.location_code}"
   vm_name             = "vm-${var.workflow_name}-${local.location_code}"
-  keyvault_name       = "kv-${var.workflow_name}-${local.location_code}-${substr(md5(var.subscription_id), 0, 6)}"
+  # Key Vault name uses random string for global uniqueness (max 24 chars)
+  keyvault_name = "kv-${var.workflow_name}-${local.location_code}-${random_string.keyvault_suffix.result}"
+}
+
+resource "random_string" "keyvault_suffix" {
+  length  = 6
+  special = false
+  upper   = false
 }
 
 module "vm_infrastructure" {

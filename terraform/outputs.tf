@@ -39,6 +39,6 @@ output "keyvault_uri" {
 }
 
 output "ssh_connection_command" {
-  description = "Command to connect to the VM via SSH"
+  description = "Command to connect to the VM via SSH (requires Azure CLI with SSH extension)"
   value       = "az ssh vm --resource-group ${module.vm_infrastructure.resource_group_name} --name ${module.vm_infrastructure.vm_name}"
 }
