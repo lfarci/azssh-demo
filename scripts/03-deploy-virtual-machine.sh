@@ -25,9 +25,9 @@ main() {
         "AZURE_CLIENT_ID" \
         "AZURE_CLIENT_SECRET" \
         "AZURE_TENANT_ID" \
-        "BACKEND_RESOURCE_GROUP_NAME" \
-        "BACKEND_STORAGE_ACCOUNT_NAME" \
-        "BACKEND_CONTAINER_NAME"
+        "TF_BACKEND_RESOURCE_GROUP_NAME" \
+        "TF_BACKEND_STORAGE_ACCOUNT_NAME" \
+        "TF_BACKEND_CONTAINER_NAME"
 
     # Get subscription ID
     subscription_id=$(get_subscription_id)
