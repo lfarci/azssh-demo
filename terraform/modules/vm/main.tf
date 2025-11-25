@@ -82,6 +82,12 @@ resource "azurerm_linux_virtual_machine" "main" {
     version   = "latest"
   }
 
+  plan {
+    name      = "9-base"
+    product   = "rockylinux-x86_64"
+    publisher = "resf"
+  }
+
   identity {
     type = "SystemAssigned"
   }
