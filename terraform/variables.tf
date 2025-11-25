@@ -4,9 +4,14 @@ variable "subscription_id" {
 }
 
 variable "workflow_name" {
-  description = "Name of the workflow (used to compute resource names)"
+  description = "Name of the workflow (used to compute resource names). Max 12 chars for Key Vault name limits."
   type        = string
   default     = "azssh-demo"
+
+  validation {
+    condition     = length(var.workflow_name) <= 12
+    error_message = "The workflow_name must be 12 characters or less to ensure Key Vault name stays within Azure's 24-character limit."
+  }
 }
 
 variable "location" {

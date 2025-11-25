@@ -28,7 +28,7 @@ resource "azurerm_key_vault" "main" {
 
 # Store private SSH key as a secret
 resource "azurerm_key_vault_secret" "ssh_private_key" {
-  count        = var.ssh_private_key != null && var.ssh_private_key != "" ? 1 : 0
+  count        = var.ssh_private_key != "" ? 1 : 0
   name         = "${var.vm_name}-ssh-private-key"
   value        = var.ssh_private_key
   key_vault_id = azurerm_key_vault.main.id
