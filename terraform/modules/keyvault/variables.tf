@@ -21,7 +21,7 @@ variable "vm_name" {
 variable "ssh_private_key" {
   description = "SSH private key to store in Key Vault"
   type        = string
-  default     = ""
+  default     = null
   sensitive   = true
 }
 
