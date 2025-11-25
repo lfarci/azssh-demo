@@ -23,12 +23,10 @@ main() {
     # Verify required secrets
     verify_github_secrets \
         "AZURE_CLIENT_ID" \
-        "AZURE_CLIENT_SECRET" \
         "AZURE_TENANT_ID" \
-        "BACKEND_RESOURCE_GROUP_NAME" \
-        "BACKEND_STORAGE_ACCOUNT_NAME" \
-        "BACKEND_CONTAINER_NAME" \
-        "BACKEND_KEY"
+        "TF_BACKEND_RESOURCE_GROUP_NAME" \
+        "TF_BACKEND_STORAGE_ACCOUNT_NAME" \
+        "TF_BACKEND_CONTAINER_NAME"
 
     # Get subscription ID
     subscription_id=$(get_subscription_id)
@@ -37,7 +35,6 @@ main() {
     echo ""
     read_with_default "Enter workload name" "azssh-demo" workload_name
     read_with_default "Enter Azure region" "eastus" location
-    read_with_default "Enter VM name" "demo-vm" vm_name
     read_with_default "Enter GitHub environment" "production" environment
 
     # Confirm before triggering
@@ -49,7 +46,6 @@ main() {
     echo "  Subscription ID: $subscription_id"
     echo "  Workload Name: $workload_name"
     echo "  Location: $location"
-    echo "  VM Name: $vm_name"
     echo "  Environment: $environment"
     echo ""
     
@@ -67,7 +63,6 @@ main() {
         "-f" "subscription_id=$subscription_id"
         "-f" "workload_name=$workload_name"
         "-f" "location=$location"
-        "-f" "vm_name=$vm_name"
         "-f" "environment=$environment"
     )
 
