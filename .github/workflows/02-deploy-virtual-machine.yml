@@ -1,5 +1,5 @@
 name: Deploy Infrastructure
-run-name: ${{ inputs.action == 'destroy' && ':wastebasket: Destroy' || ':rocket: Deploy' }} ${{ inputs.vm_name }} in ${{ inputs.workload_name }} (${{ inputs.location }})
+run-name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Deploy' }} ${{ inputs.vm_name }} in ${{ inputs.workload_name }} (${{ inputs.location }})
 
 on:
   workflow_dispatch:
