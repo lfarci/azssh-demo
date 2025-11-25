@@ -12,6 +12,7 @@ source "$SCRIPT_DIR/library.sh"
 verify_prerequisites
 verify_azure_auth
 verify_github_auth
+verify_github_secrets "AZURE_CLIENT_ID" "AZURE_TENANT_ID"
 
 echo ""
 print_info "=== Deploy Storage Account Workflow ==="

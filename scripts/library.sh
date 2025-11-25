@@ -62,6 +62,35 @@ verify_github_auth() {
     print_success "GitHub CLI authentication verified"
 }
 
+# Function to verify GitHub repository secrets
+verify_github_secrets() {
+    local required_secrets=("$@")
+    local missing_secrets=()
+    
+    print_info "Checking GitHub repository secrets..."
+    
+    for secret in "${required_secrets[@]}"; do
+        # Use gh secret list to check if secret exists
+        if ! gh secret list | grep -q "^$secret"; then
+            missing_secrets+=("$secret")
+        fi
+    done
+    
+    if [ ${#missing_secrets[@]} -gt 0 ]; then
+        print_error "Missing required GitHub repository secrets:"
+        for secret in "${missing_secrets[@]}"; do
+            echo "  - $secret"
+        done
+        echo ""
+        print_info "Please set these secrets in your GitHub repository:"
+        echo "  gh secret set SECRET_NAME"
+        echo "  Or via GitHub UI: Settings > Secrets and variables > Actions"
+        exit 1
+    fi
+    
+    print_success "All required GitHub secrets are configured"
+}
+
 # Function to get and confirm subscription
 get_subscription_id() {
     local current_sub_id=$(az account show --query id -o tsv)
