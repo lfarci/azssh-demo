@@ -141,17 +141,21 @@ When triggering the workflow manually, provide:
 - `workflow_name`: Workflow name for resource naming (default: `azssh-demo`)
 - `location`: Azure region (default: `eastus`)
 - `admin_users`: Comma-separated list of Azure AD user object IDs (optional)
-- `backend_resource_group_name`: Backend storage resource group (default: `rg-terraform-state`)
-- `backend_storage_account_name`: Backend storage account name (required)
-- `backend_container_name`: Backend container name (default: `tfstate`)
-- `backend_key`: State file name (default: `azssh-demo.tfstate`)
 
 ### Required Secrets
 
 Configure these secrets in your GitHub repository:
+
+**Azure Authentication:**
 - `AZURE_CLIENT_ID`: Azure service principal client ID
 - `AZURE_CLIENT_SECRET`: Azure service principal client secret
 - `AZURE_TENANT_ID`: Azure tenant ID
+
+**Terraform Backend (for remote state storage):**
+- `BACKEND_RESOURCE_GROUP_NAME`: Backend storage resource group name
+- `BACKEND_STORAGE_ACCOUNT_NAME`: Backend storage account name
+- `BACKEND_CONTAINER_NAME`: Backend container name
+- `BACKEND_KEY`: State file name (e.g., `azssh-demo.tfstate`)
 
 ## Module Variables
 
