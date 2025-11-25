@@ -1,4 +1,5 @@
 name: Deploy Storage Account
+run-name: Deploy Storage Account for ${{ inputs.workload_name }} in ${{ inputs.location }}
 
 on:
   workflow_dispatch:
