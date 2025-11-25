@@ -17,10 +17,6 @@ on:
         required: true
         type: string
         default: 'eastus'
-      resource_group_name:
-        description: 'Resource group name for the storage account'
-        required: true
-        type: string
       storage_container_name:
         description: 'Name of the blob container'
         required: false
@@ -57,7 +53,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ inputs.subscription_id }}
 
-      - name: Generate Storage Account Name
+      - name: Generate Resource and Storage Names
         id: gen_names
         run: |
           LOCATION_SHORT="${{ inputs.location }}"
@@ -71,6 +67,12 @@ jobs:
             *) LOCATION_SHORT="${LOCATION_SHORT:0:3}";;
           esac
           
+          # Compute resource group name (matches Terraform logic)
+          RESOURCE_GROUP_NAME="rg-${{ inputs.workload_name }}-${LOCATION_SHORT}"
+          echo "resource_group_name=$RESOURCE_GROUP_NAME" >> $GITHUB_OUTPUT
+          echo "Generated resource group name: $RESOURCE_GROUP_NAME"
+          
+          # Compute storage account name
           WORKLOAD_CLEAN=$(echo "${{ inputs.workload_name }}" | tr -d '-')
           RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
           STORAGE_NAME="st${WORKLOAD_CLEAN}${LOCATION_SHORT}${RANDOM_SUFFIX}"
@@ -82,7 +84,7 @@ jobs:
         id: create_storage
         run: |
           STORAGE_NAME="${{ steps.gen_names.outputs.storage_account_name }}"
-          RG_NAME="${{ inputs.resource_group_name }}"
+          RG_NAME="${{ steps.gen_names.outputs.resource_group_name }}"
           LOCATION="${{ inputs.location }}"
           SKU="${{ inputs.storage_replication_type }}"
           
