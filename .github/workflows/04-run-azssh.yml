@@ -15,6 +15,10 @@ on:
         description: 'Resource Group name'
         required: true
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   ssh-connection:
     runs-on: ${{ inputs.runner_label }}
