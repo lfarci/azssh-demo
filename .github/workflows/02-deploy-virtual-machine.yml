@@ -1,5 +1,5 @@
 name: Deploy Infrastructure
-run-name: ${{ inputs.action == 'destroy' && '🗑️ Destroy' || '🚀 Deploy' }} ${{ inputs.vm_name }} in ${{ inputs.workload_name }} (${{ inputs.location }})
+run-name: ${{ inputs.action == 'destroy' && ':wastebasket: Destroy' || ':rocket: Deploy' }} ${{ inputs.vm_name }} in ${{ inputs.workload_name }} (${{ inputs.location }})
 
 on:
   workflow_dispatch:
@@ -41,6 +41,11 @@ on:
         required: true
         type: string
         default: 'production'
+      backend_key:
+        description: 'Terraform backend state file name'
+        required: true
+        type: string
+        default: 'vm.tfstate'
 
 permissions:
   contents: read
@@ -53,9 +58,9 @@ jobs:
     
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_USE_OIDC: true
 
     defaults:
       run:
@@ -65,17 +70,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ inputs.subscription_id }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: 1.14.0
 
       - name: Terraform Format
         id: fmt
@@ -89,7 +87,7 @@ jobs:
             -backend-config="resource_group_name=${{ secrets.BACKEND_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.BACKEND_CONTAINER_NAME }}" \
-            -backend-config="key=${{ secrets.BACKEND_KEY }}"
+            -backend-config="key=${{ inputs.backend_key }}"
 
       - name: Terraform Validate
         id: validate
@@ -127,9 +125,9 @@ jobs:
     
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_USE_OIDC: true
 
     defaults:
       run:
@@ -139,17 +137,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ inputs.subscription_id }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: 1.14.0
 
       - name: Terraform Init
         id: init
@@ -158,7 +149,7 @@ jobs:
             -backend-config="resource_group_name=${{ secrets.BACKEND_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.BACKEND_CONTAINER_NAME }}" \
-            -backend-config="key=${{ secrets.BACKEND_KEY }}"
+            -backend-config="key=${{ inputs.backend_key }}"
 
       - name: Prepare Terraform Variables
         id: prep_vars
@@ -190,19 +181,19 @@ jobs:
       - name: Display Deployment Summary
         if: inputs.action == 'apply'
         run: |
-          echo "### Infrastructure Deployment Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure Deployment Complete :white_check_mark:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Key Vault 🔐" >> $GITHUB_STEP_SUMMARY
+          echo "#### Key Vault :lock:" >> $GITHUB_STEP_SUMMARY
           echo "**Name:** \`$(terraform output -raw keyvault_name)\`" >> $GITHUB_STEP_SUMMARY
           echo "**URI:** \`$(terraform output -raw keyvault_uri)\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Virtual Machine 🖥️" >> $GITHUB_STEP_SUMMARY
+          echo "#### Virtual Machine :computer:" >> $GITHUB_STEP_SUMMARY
           echo "**Name:** \`$(terraform output -raw vm_name)\`" >> $GITHUB_STEP_SUMMARY
           echo "**Public IP:** \`$(terraform output -raw vm_public_ip)\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Display Destroy Summary
         if: inputs.action == 'destroy'
         run: |
-          echo "### Infrastructure Destroy Complete 🗑️" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure Destroy Complete :wastebasket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All resources (Key Vault and VM) have been destroyed." >> $GITHUB_STEP_SUMMARY
