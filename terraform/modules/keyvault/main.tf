@@ -13,6 +13,13 @@ resource "azurerm_key_vault" "main" {
   tags                       = var.tags
 }
 
+# Grant Key Vault Secrets Officer role to the current identity
+resource "azurerm_role_assignment" "keyvault_secrets_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
 # Store private SSH key as a secret
 resource "azurerm_key_vault_secret" "ssh_private_key" {
   name         = "${var.vm_name}-ssh-private-key"
@@ -20,5 +27,5 @@ resource "azurerm_key_vault_secret" "ssh_private_key" {
   key_vault_id = azurerm_key_vault.main.id
   tags         = var.tags
 
-  depends_on = [azurerm_key_vault.main]
+  depends_on = [azurerm_role_assignment.keyvault_secrets_officer]
 }
