@@ -20,14 +20,20 @@ variable "location" {
   default     = "eastus"
 }
 
-variable "vm_size" {
-  description = "Size of the virtual machine"
+variable "vm_public_size" {
+  description = "Size of the public virtual machine (GitHub runner)"
+  type        = string
+  default     = "Standard_B2s"
+}
+
+variable "vm_private_size" {
+  description = "Size of the private virtual machine"
   type        = string
   default     = "Standard_B2s"
 }
 
 variable "admin_username" {
-  description = "Admin username for the virtual machine"
+  description = "Admin username for the virtual machines"
   type        = string
   default     = "azureuser"
 }
@@ -46,7 +52,7 @@ variable "vnet_address_space" {
 }
 
 variable "subnet_address_prefix" {
-  description = "Address prefix for the subnet"
+  description = "Address prefix for the main subnet (both VMs)"
   type        = list(string)
   default     = ["10.0.1.0/24"]
 }

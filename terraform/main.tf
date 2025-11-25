@@ -1,51 +1,3 @@
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "4.54.0"
-    }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
-    }
-  }
-
-  backend "azurerm" {}
-}
-
-provider "azurerm" {
-  features {
-    key_vault {
-      purge_soft_delete_on_destroy = true
-    }
-  }
-  subscription_id = var.subscription_id
-}
-
-locals {
-  # Compute resource names based on location and workload name
-  location_short = {
-    "eastus"         = "eus"
-    "westus"         = "wus"
-    "centralus"      = "cus"
-    "northeurope"    = "neu"
-    "westeurope"     = "weu"
-    "belgiumcentral" = "bec"
-  }
-  location_code       = lookup(local.location_short, var.location, substr(var.location, 0, 3))
-  resource_group_name = "rg-${var.workload_name}-${local.location_code}"
-  vm_name             = "vm-${var.workload_name}-${local.location_code}"
-  # Key Vault name uses random string for global uniqueness (max 24 chars)
-  keyvault_name = "kv-${var.workload_name}-${local.location_code}-${random_string.keyvault_suffix.result}"
-  # Storage account name: globally unique, alphanumeric only, 3-24 chars
-  storage_account_name = "st${replace(var.workload_name, "-", "")}${local.location_code}${random_string.storage_suffix.result}"
-}
-
 resource "random_string" "keyvault_suffix" {
   length  = 6
   special = false
@@ -60,20 +12,95 @@ resource "random_string" "storage_suffix" {
   lower   = true
 }
 
-module "vm_infrastructure" {
+resource "azurerm_resource_group" "main" {
+  name     = local.resource_group_name
+  location = var.location
+  tags     = var.tags
+}
+
+resource "tls_private_key" "ssh" {
+  count     = var.admin_ssh_public_key == "" ? 1 : 0
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+module "network" {
+  source = "./modules/network"
+
+  resource_group_name   = azurerm_resource_group.main.name
+  location              = azurerm_resource_group.main.location
+  create_resource_group = false
+  vnet_name             = local.vnet_name
+  vnet_address_space    = var.vnet_address_space
+  subnet_name           = "subnet-main"
+  subnet_address_prefix = var.subnet_address_prefix
+  tags                  = var.tags
+
+  depends_on = [azurerm_resource_group.main]
+}
+
+module "vm_public" {
   source = "./modules/vm"
 
-  subscription_id       = var.subscription_id
-  resource_group_name   = local.resource_group_name
-  location              = var.location
-  vm_name               = local.vm_name
-  vm_size               = var.vm_size
-  admin_username        = var.admin_username
-  admin_ssh_public_key  = var.admin_ssh_public_key
-  vnet_address_space    = var.vnet_address_space
-  subnet_address_prefix = var.subnet_address_prefix
-  admin_users           = var.admin_users
-  tags                  = var.tags
+  resource_group_name  = azurerm_resource_group.main.name
+  location             = azurerm_resource_group.main.location
+  vm_name              = local.vm_public_name
+  vm_size              = var.vm_public_size
+  admin_username       = var.admin_username
+  admin_ssh_public_key = var.admin_ssh_public_key != "" ? var.admin_ssh_public_key : tls_private_key.ssh[0].public_key_openssh
+  subnet_id            = module.network.subnet_id
+  enable_public_ip     = true
+  nsg_rules = [
+    {
+      name                       = "SSH"
+      priority                   = 1001
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = "*"
+      destination_address_prefix = "*"
+    }
+  ]
+  admin_users = var.admin_users
+  tags = merge(var.tags, {
+    Role = "GitHub Runner"
+  })
+
+  depends_on = [module.network]
+}
+
+module "vm_private" {
+  source = "./modules/vm"
+
+  resource_group_name  = azurerm_resource_group.main.name
+  location             = azurerm_resource_group.main.location
+  vm_name              = local.vm_private_name
+  vm_size              = var.vm_private_size
+  admin_username       = var.admin_username
+  admin_ssh_public_key = var.admin_ssh_public_key != "" ? var.admin_ssh_public_key : tls_private_key.ssh[0].public_key_openssh
+  subnet_id            = module.network.subnet_id
+  enable_public_ip     = false
+  nsg_rules = [
+    {
+      name                       = "SSH-from-VNet"
+      priority                   = 1001
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = "VirtualNetwork"
+      destination_address_prefix = "*"
+    }
+  ]
+  admin_users = var.admin_users
+  tags = merge(var.tags, {
+    Role = "Private VM"
+  })
+
+  depends_on = [module.network]
 }
 
 module "keyvault" {
@@ -81,11 +108,11 @@ module "keyvault" {
 
   keyvault_name       = local.keyvault_name
   location            = var.location
-  resource_group_name = local.resource_group_name
-  vm_name             = local.vm_name
-  ssh_private_key     = module.vm_infrastructure.private_key_pem
+  resource_group_name = azurerm_resource_group.main.name
+  vm_name             = local.vm_public_name
+  ssh_private_key     = var.admin_ssh_public_key == "" ? tls_private_key.ssh[0].private_key_pem : null
   admin_users         = var.admin_users
   tags                = var.tags
 
-  depends_on = [module.vm_infrastructure]
+  depends_on = [module.vm_public, module.vm_private]
 }

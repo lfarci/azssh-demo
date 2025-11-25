@@ -11,12 +11,13 @@ workflow_name = "azssh-demo"
 location = "eastus"
 
 # VM configuration
-vm_size        = "Standard_B2s"
-admin_username = "azureuser"
+vm_public_size  = "Standard_B2s"  # GitHub runner VM size
+vm_private_size = "Standard_B2s"  # Private VM size
+admin_username  = "azureuser"
 
 # Virtual network configuration
 vnet_address_space    = ["10.0.0.0/16"]
-subnet_address_prefix = ["10.0.1.0/24"]
+subnet_address_prefix = ["10.0.1.0/24"]  # Subnet for both VMs
 
 # List of Entra ID user object IDs for VM Administrator Login role
 # Get user object IDs with: az ad user show --id user@domain.com --query id -o tsv

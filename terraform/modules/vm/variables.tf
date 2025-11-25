@@ -1,8 +1,3 @@
-variable "subscription_id" {
-  description = "Azure subscription ID"
-  type        = string
-}
-
 variable "resource_group_name" {
   description = "Name of the Azure resource group"
   type        = string
@@ -29,25 +24,42 @@ variable "admin_username" {
 }
 
 variable "admin_ssh_public_key" {
-  description = "SSH public key for admin user. If empty, a new key will be generated."
+  description = "SSH public key for admin user"
   type        = string
-  default     = ""
   sensitive   = true
 }
 
-variable "vnet_address_space" {
-  description = "Address space for the virtual network"
-  type        = list(string)
+variable "subnet_id" {
+  description = "ID of the subnet where the VM will be placed"
+  type        = string
 }
 
-variable "subnet_address_prefix" {
-  description = "Address prefix for the subnet"
-  type        = list(string)
+variable "enable_public_ip" {
+  description = "Whether to create and assign a public IP address"
+  type        = bool
+  default     = false
+}
+
+variable "nsg_rules" {
+  description = "List of NSG rules to apply"
+  type = list(object({
+    name                       = string
+    priority                   = number
+    direction                  = string
+    access                     = string
+    protocol                   = string
+    source_port_range          = string
+    destination_port_range     = string
+    source_address_prefix      = string
+    destination_address_prefix = string
+  }))
+  default = []
 }
 
 variable "admin_users" {
   description = "List of Entra ID user object IDs to assign Virtual Machine Administrator Login role"
   type        = list(string)
+  default     = []
 }
 
 variable "tags" {
