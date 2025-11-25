@@ -32,6 +32,11 @@ on:
         required: false
         type: string
         default: ''
+      storage_account_name:
+        description: 'Name of existing storage account to update (if not set, a new one will be created)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -68,17 +73,23 @@ jobs:
           esac
           
           # Compute resource group name (matches Terraform logic)
-          RESOURCE_GROUP_NAME="rg-${{ inputs.workload_name }}-${LOCATION_SHORT}"
+          RESOURCE_GROUP_NAME="rg-${{ inputs.workload_name }}"
           echo "resource_group_name=$RESOURCE_GROUP_NAME" >> $GITHUB_OUTPUT
           echo "Generated resource group name: $RESOURCE_GROUP_NAME"
           
-          # Compute storage account name
-          WORKLOAD_CLEAN=$(echo "${{ inputs.workload_name }}" | tr -d '-')
-          RANDOM_SUFFIX=$(head -c 32 /dev/urandom | tr -dc 'a-z0-9' | head -c 6)
-          STORAGE_NAME="st${WORKLOAD_CLEAN}${LOCATION_SHORT}${RANDOM_SUFFIX}"
+          # Use provided storage account name or generate new one
+          if [ -n "${{ inputs.storage_account_name }}" ]; then
+            STORAGE_NAME="${{ inputs.storage_account_name }}"
+            echo "Using existing storage account name: $STORAGE_NAME"
+          else
+            # Compute storage account name
+            WORKLOAD_CLEAN=$(echo "${{ inputs.workload_name }}" | tr -d '-')
+            RANDOM_SUFFIX=$(head -c 32 /dev/urandom | tr -dc 'a-z0-9' | head -c 6)
+            STORAGE_NAME="st${WORKLOAD_CLEAN}${LOCATION_SHORT}${RANDOM_SUFFIX}"
+            echo "Generated storage account name: $STORAGE_NAME"
+          fi
           
           echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_OUTPUT
-          echo "Generated storage account name: $STORAGE_NAME"
 
       - name: Create or Update Storage Account
         id: create_storage
@@ -96,16 +107,24 @@ jobs:
             echo "Resource group $RG_NAME already exists"
           fi
           
-          # Create storage account
-          echo "Creating storage account $STORAGE_NAME..."
-          az storage account create \
-            --name "$STORAGE_NAME" \
-            --resource-group "$RG_NAME" \
-            --location "$LOCATION" \
-            --sku "Standard_$SKU" \
-            --kind StorageV2 \
-            --allow-blob-public-access false \
-            --min-tls-version TLS1_2
+          # Create or update storage account based on whether name was provided
+          if [ -n "${{ inputs.storage_account_name }}" ]; then
+            echo "Updating storage account $STORAGE_NAME..."
+            az storage account update \
+              --name "$STORAGE_NAME" \
+              --resource-group "$RG_NAME" \
+              --sku "Standard_$SKU"
+          else
+            echo "Creating storage account $STORAGE_NAME..."
+            az storage account create \
+              --name "$STORAGE_NAME" \
+              --resource-group "$RG_NAME" \
+              --location "$LOCATION" \
+              --sku "Standard_$SKU" \
+              --kind StorageV2 \
+              --allow-blob-public-access false \
+              --min-tls-version TLS1_2
+          fi
           
           # Get storage account key
           STORAGE_KEY=$(az storage account keys list \

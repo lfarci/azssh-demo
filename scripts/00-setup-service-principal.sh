@@ -157,9 +157,9 @@ fi
 
 # Assign Contributor role at subscription level
 print_info "Assigning Contributor role to service principal..."
-role_exists=$(az role assignment list --assignee "$app_id" --role "Contributor" --scope "/subscriptions/$subscription_id" --query "[0].id" -o tsv)
+contributor_role_exists=$(az role assignment list --assignee "$app_id" --role "Contributor" --scope "/subscriptions/$subscription_id" --query "[0].id" -o tsv)
 
-if [ -z "$role_exists" ]; then
+if [ -z "$contributor_role_exists" ]; then
     az role assignment create \
         --assignee "$app_id" \
         --role "Contributor" \
@@ -167,6 +167,20 @@ if [ -z "$role_exists" ]; then
     print_success "Contributor role assigned"
 else
     print_warning "Contributor role already assigned"
+fi
+
+# Assign User Access Administrator role at subscription level
+print_info "Assigning User Access Administrator role to service principal..."
+uaa_role_exists=$(az role assignment list --assignee "$app_id" --role "User Access Administrator" --scope "/subscriptions/$subscription_id" --query "[0].id" -o tsv)
+
+if [ -z "$uaa_role_exists" ]; then
+    az role assignment create \
+        --assignee "$app_id" \
+        --role "User Access Administrator" \
+        --scope "/subscriptions/$subscription_id"
+    print_success "User Access Administrator role assigned"
+else
+    print_warning "User Access Administrator role already assigned"
 fi
 
 # Set GitHub secrets
