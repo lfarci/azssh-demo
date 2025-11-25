@@ -105,11 +105,18 @@ jobs:
             DESTROY_FLAG="-destroy"
           fi
           
-          terraform plan -no-color -input=false $DESTROY_FLAG \
+          terraform plan -no-color -input=false -out=tfplan $DESTROY_FLAG \
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workload_name=${{ inputs.workload_name }}" \
             -var="location=${{ inputs.location }}" \
             ${{ steps.prep_vars.outputs.admin_users_var }}
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+          retention-days: 1
 
   deploy:
     name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Deploy' }} Key Vault and VM
@@ -136,6 +143,12 @@ jobs:
         with:
           terraform_version: 1.14.0
 
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+
       - name: Terraform Init
         id: init
         run: |
@@ -155,20 +168,7 @@ jobs:
           echo "admin_users_var=$ADMIN_USERS" >> $GITHUB_OUTPUT
 
       - name: Terraform ${{ inputs.action == 'destroy' && 'Destroy' || 'Apply' }}
-        run: |
-          if [ "${{ inputs.action }}" == "destroy" ]; then
-            terraform destroy -auto-approve -input=false \
-              -var="subscription_id=${{ inputs.subscription_id }}" \
-              -var="workload_name=${{ inputs.workload_name }}" \
-              -var="location=${{ inputs.location }}" \
-              ${{ steps.prep_vars.outputs.admin_users_var }}
-          else
-            terraform apply -auto-approve -input=false \
-              -var="subscription_id=${{ inputs.subscription_id }}" \
-              -var="workload_name=${{ inputs.workload_name }}" \
-              -var="location=${{ inputs.location }}" \
-              ${{ steps.prep_vars.outputs.admin_users_var }}
-          fi
+        run: terraform apply -auto-approve -input=false tfplan
 
       - name: Display Deployment Summary
         if: inputs.action == 'apply'
