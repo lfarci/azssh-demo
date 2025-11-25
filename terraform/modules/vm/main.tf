@@ -96,9 +96,9 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
 
   source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts-gen2"
+    publisher = "resf"
+    offer     = "rockylinux-x86_64"
+    sku       = "9-base"
     version   = "latest"
   }
 
