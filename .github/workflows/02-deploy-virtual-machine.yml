@@ -1,4 +1,4 @@
-name: Terraform
+name: Deploy Infrastructure
 
 on:
   workflow_dispatch:
@@ -17,18 +17,28 @@ on:
         required: true
         type: string
         default: 'eastus'
+      vm_name:
+        description: 'Name of the VM'
+        required: true
+        type: string
+        default: 'demo-vm'
       admin_users:
-        description: 'Comma-separated list of Entra ID user object IDs for VM admin access'
+        description: 'Comma-separated list of Entra ID user object IDs for Key Vault and VM admin access'
         required: false
         type: string
         default: ''
+      environment:
+        description: 'GitHub environment to deploy to'
+        required: true
+        type: string
+        default: 'production'
 
 permissions:
   contents: read
 
 jobs:
-  terraform:
-    name: Terraform
+  plan:
+    name: Plan Infrastructure
     runs-on: ubuntu-latest
     
     env:
@@ -48,7 +58,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0  # Pin to specific version for reproducibility. Update as needed.
+          terraform_version: 1.5.0
 
       - name: Terraform Format
         id: fmt
@@ -84,7 +94,51 @@ jobs:
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workload_name=${{ inputs.workload_name }}" \
             -var="location=${{ inputs.location }}" \
+            -var="vm_name=${{ inputs.vm_name }}" \
             ${{ steps.prep_vars.outputs.admin_users_var }}
+
+  deploy:
+    name: Deploy Key Vault and VM
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: ${{ inputs.environment }}
+    
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.BACKEND_RESOURCE_GROUP_NAME }}" \
+            -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ secrets.BACKEND_CONTAINER_NAME }}" \
+            -backend-config="key=${{ secrets.BACKEND_KEY }}"
+
+      - name: Prepare Terraform Variables
+        id: prep_vars
+        run: |
+          ADMIN_USERS=""
+          if [ -n "${{ inputs.admin_users }}" ]; then
+            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/[[:space:]]*,[[:space:]]*/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
+          fi
+          echo "admin_users_var=$ADMIN_USERS" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply
         run: |
@@ -92,4 +146,17 @@ jobs:
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workload_name=${{ inputs.workload_name }}" \
             -var="location=${{ inputs.location }}" \
+            -var="vm_name=${{ inputs.vm_name }}" \
             ${{ steps.prep_vars.outputs.admin_users_var }}
+
+      - name: Display Deployment Summary
+        run: |
+          echo "### Infrastructure Deployment Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Key Vault 🔐" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** \`$(terraform output -raw keyvault_name)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URI:** \`$(terraform output -raw keyvault_uri)\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Virtual Machine 🖥️" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** \`$(terraform output -raw vm_name)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Public IP:** \`$(terraform output -raw vm_public_ip)\`" >> $GITHUB_STEP_SUMMARY
