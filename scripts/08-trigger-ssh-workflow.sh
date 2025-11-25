@@ -15,7 +15,7 @@ REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-$(git config user.name)}"
 REPO_NAME="azssh-demo"
 
 # Get workflow inputs
-print_header "SSH to Private VM - Workflow Trigger"
+print_info "SSH to Private VM - Workflow Trigger"
 
 read -p "Enter runner label (default: self-hosted): " RUNNER_LABEL
 RUNNER_LABEL=${RUNNER_LABEL:-self-hosted}
