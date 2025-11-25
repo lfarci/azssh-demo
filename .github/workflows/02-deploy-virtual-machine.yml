@@ -189,13 +189,22 @@ jobs:
           echo "**Name:** \`$(terraform output -raw keyvault_name)\`" >> $GITHUB_STEP_SUMMARY
           echo "**URI:** \`$(terraform output -raw keyvault_uri)\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Virtual Machine :computer:" >> $GITHUB_STEP_SUMMARY
-          echo "**Name:** \`$(terraform output -raw vm_name)\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Public IP:** \`$(terraform output -raw vm_public_ip)\`" >> $GITHUB_STEP_SUMMARY
+          echo "#### Public Virtual Machine (GitHub Runner) :computer:" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** \`$(terraform output -raw vm_public_name)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Public IP:** \`$(terraform output -raw public_ip_address)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Private IP:** \`$(terraform output -raw vm_public_private_ip_address)\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Private Virtual Machine :computer:" >> $GITHUB_STEP_SUMMARY
+          echo "**Name:** \`$(terraform output -raw vm_private_name)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Private IP:** \`$(terraform output -raw vm_private_ip_address)\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### SSH Connection :key:" >> $GITHUB_STEP_SUMMARY
+          echo "**Public VM:** \`$(terraform output -raw ssh_connection_command_public)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Private VM:** \`$(terraform output -raw ssh_connection_command_private)\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Display Destroy Summary
         if: inputs.action == 'destroy'
         run: |
           echo "### Infrastructure Destroy Complete :wastebasket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All resources (Key Vault and VM) have been destroyed." >> $GITHUB_STEP_SUMMARY
+          echo "All resources (Key Vault, VMs, and Network) have been destroyed." >> $GITHUB_STEP_SUMMARY
