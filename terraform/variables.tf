@@ -1,19 +1,18 @@
-variable "resource_group_name" {
-  description = "Name of the Azure resource group"
+variable "subscription_id" {
+  description = "Azure subscription ID"
   type        = string
-  default     = "rg-azssh-demo"
+}
+
+variable "workflow_name" {
+  description = "Name of the workflow (used to compute resource names)"
+  type        = string
+  default     = "azssh-demo"
 }
 
 variable "location" {
   description = "Azure region for resources"
   type        = string
   default     = "eastus"
-}
-
-variable "vm_name" {
-  description = "Name of the virtual machine"
-  type        = string
-  default     = "vm-ubuntu-demo"
 }
 
 variable "vm_size" {

@@ -1,11 +1,18 @@
 # Example Terraform variables file
 # Copy this file to terraform.tfvars and fill in the values
 
-resource_group_name = "rg-azssh-demo"
-location            = "eastus"
-vm_name             = "vm-ubuntu-demo"
-vm_size             = "Standard_B2s"
-admin_username      = "azureuser"
+# Azure subscription ID
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Workflow name (used to compute resource group and VM names)
+workflow_name = "azssh-demo"
+
+# Azure region
+location = "eastus"
+
+# VM configuration
+vm_size        = "Standard_B2s"
+admin_username = "azureuser"
 
 # Virtual network configuration
 vnet_address_space    = ["10.0.0.0/16"]

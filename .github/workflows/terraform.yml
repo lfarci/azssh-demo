@@ -1,21 +1,49 @@
 name: Terraform
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'terraform/**'
   workflow_dispatch:
+    inputs:
+      subscription_id:
+        description: 'Azure Subscription ID'
+        required: true
+        type: string
+      workflow_name:
+        description: 'Workflow name (used to compute resource names)'
+        required: true
+        type: string
+        default: 'azssh-demo'
+      location:
+        description: 'Azure region for resources'
+        required: true
+        type: string
+        default: 'eastus'
+      admin_users:
+        description: 'Comma-separated list of Azure AD user object IDs for VM admin access'
+        required: false
+        type: string
+        default: ''
+      backend_resource_group_name:
+        description: 'Backend Storage Resource Group Name'
+        required: true
+        type: string
+        default: 'rg-terraform-state'
+      backend_storage_account_name:
+        description: 'Backend Storage Account Name'
+        required: true
+        type: string
+      backend_container_name:
+        description: 'Backend Storage Container Name'
+        required: true
+        type: string
+        default: 'tfstate'
+      backend_key:
+        description: 'Backend State File Name'
+        required: true
+        type: string
+        default: 'azssh-demo.tfstate'
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   terraform:
@@ -25,7 +53,7 @@ jobs:
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
     defaults:
@@ -48,7 +76,12 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.backend_resource_group_name }}" \
+            -backend-config="storage_account_name=${{ inputs.backend_storage_account_name }}" \
+            -backend-config="container_name=${{ inputs.backend_container_name }}" \
+            -backend-config="key=${{ inputs.backend_key }}"
 
       - name: Terraform Validate
         id: validate
@@ -56,44 +89,25 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        if: github.event_name == 'pull_request'
-        run: terraform plan -no-color -input=false
-        continue-on-error: true
-
-      - name: Add PR Comment
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: ${{ steps.plan.outputs.stdout }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`terraform
-            ${process.env.PLAN}
-            \`\`\`
-
-            </details>
-
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
-
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
+        run: |
+          ADMIN_USERS=""
+          if [ -n "${{ inputs.admin_users }}" ]; then
+            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
+          fi
+          terraform plan -no-color -input=false \
+            -var="subscription_id=${{ inputs.subscription_id }}" \
+            -var="workflow_name=${{ inputs.workflow_name }}" \
+            -var="location=${{ inputs.location }}" \
+            $ADMIN_USERS
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -input=false
+        run: |
+          ADMIN_USERS=""
+          if [ -n "${{ inputs.admin_users }}" ]; then
+            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
+          fi
+          terraform apply -auto-approve -input=false \
+            -var="subscription_id=${{ inputs.subscription_id }}" \
+            -var="workflow_name=${{ inputs.workflow_name }}" \
+            -var="location=${{ inputs.location }}" \
+            $ADMIN_USERS
