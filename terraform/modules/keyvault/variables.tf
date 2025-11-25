@@ -26,7 +26,7 @@ variable "ssh_private_key" {
 }
 
 variable "admin_users" {
-  description = "List of Azure AD user object IDs to grant access to Key Vault"
+  description = "List of Entra ID user object IDs to grant access to Key Vault"
   type        = list(string)
   default     = []
 }

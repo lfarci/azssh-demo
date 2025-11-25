@@ -18,7 +18,7 @@ admin_username = "azureuser"
 vnet_address_space    = ["10.0.0.0/16"]
 subnet_address_prefix = ["10.0.1.0/24"]
 
-# List of Azure AD user object IDs for VM Administrator Login role
+# List of Entra ID user object IDs for VM Administrator Login role
 # Get user object IDs with: az ad user show --id user@domain.com --query id -o tsv
 admin_users = [
   # "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",

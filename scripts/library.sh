@@ -96,18 +96,18 @@ get_subscription_id() {
     local current_sub_id=$(az account show --query id -o tsv)
     local current_sub_name=$(az account show --query name -o tsv)
 
-    print_info "Current Azure Subscription:"
-    echo "  ID: $current_sub_id"
-    echo "  Name: $current_sub_name"
-    echo ""
+    print_info "Current Azure Subscription:" >&2
+    echo "  ID: $current_sub_id" >&2
+    echo "  Name: $current_sub_name" >&2
+    echo "" >&2
 
     read -p "Use this subscription ($current_sub_id)? (y/n) [y]: " use_current
     use_current=${use_current:-y}
 
     if [[ "$use_current" != "y" && "$use_current" != "Y" ]]; then
-        print_info "Available subscriptions:"
-        az account list --query "[].{Name:name, ID:id, State:state}" -o table
-        echo ""
+        print_info "Available subscriptions:" >&2
+        az account list --query "[].{Name:name, ID:id, State:state}" -o table >&2
+        echo "" >&2
         read -p "Enter subscription ID: " subscription_id
         echo "$subscription_id"
     else

@@ -4,7 +4,7 @@ Test Azure CLI SSH extension to authenticate to a Linux virtual machine using Az
 
 ## Overview
 
-This repository contains Terraform infrastructure as code (IaC) to deploy an Ubuntu virtual machine in Azure with Azure AD SSH authentication enabled. This allows users to SSH into the VM using their Azure AD credentials without managing SSH keys manually.
+This repository contains Terraform infrastructure as code (IaC) to deploy an Ubuntu virtual machine in Azure with Entra ID SSH authentication enabled. This allows users to SSH into the VM using their Entra ID credentials without managing SSH keys manually.
 
 ## Features
 
@@ -65,9 +65,9 @@ The infrastructure includes:
    cp terraform.tfvars.example terraform.tfvars
    ```
 
-5. Get your Azure AD user object ID:
+5. Get your Entra ID user object ID:
    ```bash
-   az ad user show --id your-email@domain.com --query id -o tsv
+   az ad user show --id <your-email> --query id -o tsv
    ```
 
 6. Edit `terraform.tfvars` and configure:

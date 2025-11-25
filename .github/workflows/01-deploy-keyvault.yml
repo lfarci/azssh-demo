@@ -23,7 +23,7 @@ on:
         type: string
         default: 'demo-vm'
       admin_users:
-        description: 'Comma-separated list of Azure AD user object IDs for Key Vault access'
+        description: 'Comma-separated list of Entra ID user object IDs for Key Vault access'
         required: false
         type: string
         default: ''

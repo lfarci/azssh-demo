@@ -46,7 +46,7 @@ variable "subnet_address_prefix" {
 }
 
 variable "admin_users" {
-  description = "List of Azure AD user object IDs to assign Virtual Machine Administrator Login role"
+  description = "List of Entra ID user object IDs to assign Virtual Machine Administrator Login role"
   type        = list(string)
 }
 

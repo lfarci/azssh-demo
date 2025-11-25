@@ -18,7 +18,7 @@ on:
         type: string
         default: 'eastus'
       admin_users:
-        description: 'Comma-separated list of Azure AD user object IDs for VM admin access'
+        description: 'Comma-separated list of Entra ID user object IDs for VM admin access'
         required: false
         type: string
         default: ''
