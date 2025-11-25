@@ -74,7 +74,7 @@ jobs:
           
           # Compute storage account name
           WORKLOAD_CLEAN=$(echo "${{ inputs.workload_name }}" | tr -d '-')
-          RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+          RANDOM_SUFFIX=$(head -c 32 /dev/urandom | tr -dc 'a-z0-9' | head -c 6)
           STORAGE_NAME="st${WORKLOAD_CLEAN}${LOCATION_SHORT}${RANDOM_SUFFIX}"
           
           echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_OUTPUT
