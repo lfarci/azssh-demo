@@ -23,7 +23,6 @@ main() {
     # Verify required secrets
     verify_github_secrets \
         "AZURE_CLIENT_ID" \
-        "AZURE_CLIENT_SECRET" \
         "AZURE_TENANT_ID" \
         "TF_BACKEND_RESOURCE_GROUP_NAME" \
         "TF_BACKEND_STORAGE_ACCOUNT_NAME" \
