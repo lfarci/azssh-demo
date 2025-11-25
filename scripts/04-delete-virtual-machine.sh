@@ -58,12 +58,14 @@ main() {
     fi
 
     # Build workflow inputs
+    backend_key="${workload_name}.tfstate"
     workflow_args=(
         "-f" "action=destroy"
         "-f" "subscription_id=$subscription_id"
         "-f" "workload_name=$workload_name"
         "-f" "location=$location"
         "-f" "environment=$environment"
+        "-f" "backend_key=$backend_key"
     )
 
     # Trigger the workflow
