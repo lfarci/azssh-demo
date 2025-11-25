@@ -87,27 +87,28 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
-      - name: Terraform Plan
-        id: plan
+      - name: Prepare Terraform Variables
+        id: prep_vars
         run: |
           ADMIN_USERS=""
           if [ -n "${{ inputs.admin_users }}" ]; then
-            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
+            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/[[:space:]]*,[[:space:]]*/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
           fi
+          echo "admin_users_var=$ADMIN_USERS" >> $GITHUB_OUTPUT
+
+      - name: Terraform Plan
+        id: plan
+        run: |
           terraform plan -no-color -input=false \
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workflow_name=${{ inputs.workflow_name }}" \
             -var="location=${{ inputs.location }}" \
-            $ADMIN_USERS
+            ${{ steps.prep_vars.outputs.admin_users_var }}
 
       - name: Terraform Apply
         run: |
-          ADMIN_USERS=""
-          if [ -n "${{ inputs.admin_users }}" ]; then
-            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
-          fi
           terraform apply -auto-approve -input=false \
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workflow_name=${{ inputs.workflow_name }}" \
             -var="location=${{ inputs.location }}" \
-            $ADMIN_USERS
+            ${{ steps.prep_vars.outputs.admin_users_var }}

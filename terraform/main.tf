@@ -61,7 +61,7 @@ module "keyvault" {
   location            = var.location
   resource_group_name = local.resource_group_name
   vm_name             = local.vm_name
-  ssh_private_key     = module.vm_infrastructure.private_key_pem != null ? module.vm_infrastructure.private_key_pem : ""
+  ssh_private_key     = module.vm_infrastructure.private_key_pem
   admin_users         = var.admin_users
   tags                = var.tags
 
