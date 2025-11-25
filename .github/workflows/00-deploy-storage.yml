@@ -67,6 +67,7 @@ jobs:
             centralus) LOCATION_SHORT="cus";;
             northeurope) LOCATION_SHORT="neu";;
             westeurope) LOCATION_SHORT="weu";;
+            belgiumcentral) LOCATION_SHORT="bec";;
             *) LOCATION_SHORT="${LOCATION_SHORT:0:3}";;
           esac
           
@@ -130,7 +131,7 @@ jobs:
         if: inputs.admin_users != ''
         run: |
           STORAGE_NAME="${{ steps.gen_names.outputs.storage_account_name }}"
-          RG_NAME="${{ inputs.resource_group_name }}"
+          RG_NAME="${{ steps.gen_names.outputs.resource_group_name }}"
           STORAGE_ID=$(az storage account show \
             --name "$STORAGE_NAME" \
             --resource-group "$RG_NAME" \
@@ -150,7 +151,7 @@ jobs:
         run: |
           echo "### Storage Account Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Resource Group:** \`${{ inputs.resource_group_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Resource Group:** \`${{ steps.gen_names.outputs.resource_group_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Storage Account Name:** \`${{ steps.gen_names.outputs.storage_account_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Container Name:** \`${{ inputs.storage_container_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Blob Endpoint:** \`${{ steps.create_storage.outputs.blob_endpoint }}\`" >> $GITHUB_STEP_SUMMARY

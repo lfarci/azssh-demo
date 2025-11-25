@@ -30,11 +30,12 @@ provider "azurerm" {
 locals {
   # Compute resource names based on location and workload name
   location_short = {
-    "eastus"      = "eus"
-    "westus"      = "wus"
-    "centralus"   = "cus"
-    "northeurope" = "neu"
-    "westeurope"  = "weu"
+    "eastus"         = "eus"
+    "westus"         = "wus"
+    "centralus"      = "cus"
+    "northeurope"    = "neu"
+    "westeurope"     = "weu"
+    "belgiumcentral" = "bec"
   }
   location_code       = lookup(local.location_short, var.location, substr(var.location, 0, 3))
   resource_group_name = "rg-${var.workload_name}-${local.location_code}"
