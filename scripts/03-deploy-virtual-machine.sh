@@ -35,7 +35,6 @@ main() {
     echo ""
     read_with_default "Enter workload name" "azssh-demo" workload_name
     read_with_default "Enter Azure region" "eastus" location
-    read_with_default "Enter VM name" "demo-vm" vm_name
     read_with_default "Enter GitHub environment" "production" environment
     
     echo ""
@@ -49,7 +48,6 @@ main() {
     echo "  Subscription ID: $subscription_id"
     echo "  Workload Name: $workload_name"
     echo "  Location: $location"
-    echo "  VM Name: $vm_name"
     echo "  Environment: $environment"
     if [ -n "$admin_users" ]; then
         echo "  Admin Users: $admin_users"
@@ -69,7 +67,6 @@ main() {
         "-f" "subscription_id=$subscription_id"
         "-f" "workload_name=$workload_name"
         "-f" "location=$location"
-        "-f" "vm_name=$vm_name"
         "-f" "environment=$environment"
     )
 
