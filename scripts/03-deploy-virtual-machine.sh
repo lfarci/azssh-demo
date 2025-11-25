@@ -67,6 +67,7 @@ main() {
 
     # Build workflow inputs
     workflow_args=(
+        "-f" "action=apply"
         "-f" "subscription_id=$subscription_id"
         "-f" "workload_name=$workload_name"
         "-f" "location=$location"

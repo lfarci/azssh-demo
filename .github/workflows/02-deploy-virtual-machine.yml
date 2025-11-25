@@ -3,6 +3,14 @@ name: Deploy Infrastructure
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action to perform (apply or destroy)'
+        required: true
+        type: choice
+        options:
+          - apply
+          - destroy
+        default: 'apply'
       subscription_id:
         description: 'Azure Subscription ID'
         required: true
@@ -90,7 +98,12 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -no-color -input=false \
+          DESTROY_FLAG=""
+          if [ "${{ inputs.action }}" == "destroy" ]; then
+            DESTROY_FLAG="-destroy"
+          fi
+          
+          terraform plan -no-color -input=false $DESTROY_FLAG \
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workload_name=${{ inputs.workload_name }}" \
             -var="location=${{ inputs.location }}" \
@@ -98,7 +111,7 @@ jobs:
             ${{ steps.prep_vars.outputs.admin_users_var }}
 
   deploy:
-    name: Deploy Key Vault and VM
+    name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Deploy' }} Key Vault and VM
     runs-on: ubuntu-latest
     needs: plan
     environment: ${{ inputs.environment }}
@@ -140,16 +153,26 @@ jobs:
           fi
           echo "admin_users_var=$ADMIN_USERS" >> $GITHUB_OUTPUT
 
-      - name: Terraform Apply
+      - name: Terraform ${{ inputs.action == 'destroy' && 'Destroy' || 'Apply' }}
         run: |
-          terraform apply -auto-approve -input=false \
-            -var="subscription_id=${{ inputs.subscription_id }}" \
-            -var="workload_name=${{ inputs.workload_name }}" \
-            -var="location=${{ inputs.location }}" \
-            -var="vm_name=${{ inputs.vm_name }}" \
-            ${{ steps.prep_vars.outputs.admin_users_var }}
+          if [ "${{ inputs.action }}" == "destroy" ]; then
+            terraform destroy -auto-approve -input=false \
+              -var="subscription_id=${{ inputs.subscription_id }}" \
+              -var="workload_name=${{ inputs.workload_name }}" \
+              -var="location=${{ inputs.location }}" \
+              -var="vm_name=${{ inputs.vm_name }}" \
+              ${{ steps.prep_vars.outputs.admin_users_var }}
+          else
+            terraform apply -auto-approve -input=false \
+              -var="subscription_id=${{ inputs.subscription_id }}" \
+              -var="workload_name=${{ inputs.workload_name }}" \
+              -var="location=${{ inputs.location }}" \
+              -var="vm_name=${{ inputs.vm_name }}" \
+              ${{ steps.prep_vars.outputs.admin_users_var }}
+          fi
 
       - name: Display Deployment Summary
+        if: inputs.action == 'apply'
         run: |
           echo "### Infrastructure Deployment Complete ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -160,3 +183,10 @@ jobs:
           echo "#### Virtual Machine 🖥️" >> $GITHUB_STEP_SUMMARY
           echo "**Name:** \`$(terraform output -raw vm_name)\`" >> $GITHUB_STEP_SUMMARY
           echo "**Public IP:** \`$(terraform output -raw vm_public_ip)\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Display Destroy Summary
+        if: inputs.action == 'destroy'
+        run: |
+          echo "### Infrastructure Destroy Complete 🗑️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All resources (Key Vault and VM) have been destroyed." >> $GITHUB_STEP_SUMMARY
