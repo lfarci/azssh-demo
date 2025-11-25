@@ -12,8 +12,11 @@ This repository contains Terraform infrastructure as code (IaC) to deploy an Ubu
 - **Virtual Network**: Dedicated VNet with subnet for VM hosting
 - **Public Access**: VM is accessible via public IP address
 - **Azure AD SSH Authentication**: `AADSSHLoginForLinux` extension enabled
+- **Key Vault**: Secure storage for SSH private keys
 - **Role-Based Access**: Configurable administrator users via Azure RBAC
-- **Automated Deployment**: GitHub Actions workflow for CI/CD
+- **Remote State Management**: Azure Blob Storage backend for Terraform state
+- **Computed Resource Names**: Dynamic naming based on workflow name and location
+- **Automated Deployment**: GitHub Actions workflow with manual dispatch
 
 ## Prerequisites
 
@@ -25,14 +28,16 @@ This repository contains Terraform infrastructure as code (IaC) to deploy an Ubu
 ## Architecture
 
 The infrastructure includes:
-- Resource Group
+- Resource Group (name: `rg-{workflow_name}-{location_code}`)
 - Virtual Network with Subnet
 - Network Security Group (allows SSH on port 22)
 - Public IP Address
 - Network Interface
-- Linux Virtual Machine (Ubuntu 22.04 LTS)
+- Linux Virtual Machine (Ubuntu 22.04 LTS, name: `vm-{workflow_name}-{location_code}`)
 - AADSSHLoginForLinux VM Extension
+- Key Vault for SSH private key storage (with uniqueness hash)
 - Role Assignments for VM Administrator Login
+- Azure Blob Storage backend for Terraform state
 
 ## Usage
 
@@ -49,31 +54,45 @@ The infrastructure includes:
    az login
    ```
 
-3. Copy and configure variables:
+3. Configure backend (optional - for remote state):
+   ```bash
+   cp backend.tfvars.example backend.tfvars
+   # Edit backend.tfvars with your Azure Storage details
+   ```
+
+4. Copy and configure variables:
    ```bash
    cp terraform.tfvars.example terraform.tfvars
    ```
 
-4. Get your Azure AD user object ID:
+5. Get your Azure AD user object ID:
    ```bash
    az ad user show --id your-email@domain.com --query id -o tsv
    ```
 
-5. Edit `terraform.tfvars` and add your user object ID to the `admin_users` list.
+6. Edit `terraform.tfvars` and configure:
+   - `subscription_id`: Your Azure subscription ID
+   - `workflow_name`: Name for your deployment (used in resource naming)
+   - `location`: Azure region
+   - `admin_users`: List of Azure AD user object IDs
 
-6. Initialize Terraform:
+7. Initialize Terraform:
    ```bash
-   terraform init
+   # Without remote backend
+   terraform init -backend=false
+   
+   # With remote backend
+   terraform init -backend-config=backend.tfvars
    ```
 
-7. Plan the deployment:
+8. Plan the deployment:
    ```bash
-   terraform plan
+   terraform plan -var-file=terraform.tfvars
    ```
 
-8. Apply the configuration:
+9. Apply the configuration:
    ```bash
-   terraform apply
+   terraform apply -var-file=terraform.tfvars
    ```
 
 ### Connect to the VM
@@ -88,41 +107,73 @@ PUBLIC_IP=$(terraform output -raw public_ip_address)
 az ssh vm --ip $PUBLIC_IP
 ```
 
-Or specify the resource details:
+Or specify the resource details (resource names are computed from workflow_name and location):
 
 ```bash
-az ssh vm --resource-group rg-azssh-demo --name vm-ubuntu-demo
+# For workflow_name="azssh-demo" and location="eastus"
+az ssh vm --resource-group rg-azssh-demo-eus --name vm-azssh-demo-eus
+```
+
+### Retrieve SSH Private Key from Key Vault
+
+If you need the SSH private key for manual access:
+
+```bash
+# Get Key Vault name from Terraform output
+KEYVAULT_NAME=$(terraform output -raw keyvault_name)
+
+# Retrieve the private key
+az keyvault secret show --vault-name $KEYVAULT_NAME --name vm-azssh-demo-eus-ssh-private-key --query value -o tsv
 ```
 
 ## GitHub Actions
 
-The repository includes a GitHub Actions workflow that:
+The repository includes a GitHub Actions workflow with manual dispatch trigger that:
 - Validates Terraform configuration
 - Checks formatting
-- Creates a plan for pull requests
-- Applies changes on merge to main
+- Creates a Terraform plan
+- Applies changes automatically
+
+### Workflow Inputs
+
+When triggering the workflow manually, provide:
+- `subscription_id`: Azure Subscription ID (required)
+- `workflow_name`: Workflow name for resource naming (default: `azssh-demo`)
+- `location`: Azure region (default: `eastus`)
+- `admin_users`: Comma-separated list of Azure AD user object IDs (optional)
+- `backend_resource_group_name`: Backend storage resource group (default: `rg-terraform-state`)
+- `backend_storage_account_name`: Backend storage account name (required)
+- `backend_container_name`: Backend container name (default: `tfstate`)
+- `backend_key`: State file name (default: `azssh-demo.tfstate`)
 
 ### Required Secrets
 
 Configure these secrets in your GitHub repository:
 - `AZURE_CLIENT_ID`: Azure service principal client ID
 - `AZURE_CLIENT_SECRET`: Azure service principal client secret
-- `AZURE_SUBSCRIPTION_ID`: Azure subscription ID
 - `AZURE_TENANT_ID`: Azure tenant ID
 
 ## Module Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `resource_group_name` | Name of the Azure resource group | `rg-azssh-demo` |
+| `subscription_id` | Azure subscription ID | (required) |
+| `workflow_name` | Workflow name for resource naming | `azssh-demo` |
 | `location` | Azure region for resources | `eastus` |
-| `vm_name` | Name of the virtual machine | `vm-ubuntu-demo` |
 | `vm_size` | Size of the virtual machine | `Standard_B2s` |
 | `admin_username` | Admin username for the VM | `azureuser` |
+| `admin_ssh_public_key` | SSH public key (auto-generated if empty) | `""` |
 | `vnet_address_space` | Address space for the VNet | `["10.0.0.0/16"]` |
 | `subnet_address_prefix` | Address prefix for the subnet | `["10.0.1.0/24"]` |
 | `admin_users` | List of Azure AD user object IDs for admin access | `[]` |
 | `tags` | Tags to apply to resources | See variables.tf |
+
+### Computed Names
+
+Resource names are automatically computed based on `workflow_name` and `location`:
+- Resource Group: `rg-{workflow_name}-{location_code}`
+- Virtual Machine: `vm-{workflow_name}-{location_code}`
+- Key Vault: `kv-{workflow_name}-{location_code}-{hash}` (includes uniqueness hash)
 
 ## Outputs
 
@@ -132,13 +183,18 @@ Configure these secrets in your GitHub repository:
 - `public_ip_address`: Public IP address of the VM
 - `vnet_name`: Name of the virtual network
 - `subnet_name`: Name of the subnet
+- `keyvault_name`: Name of the Key Vault
+- `keyvault_uri`: URI of the Key Vault
+- `ssh_connection_command`: Ready-to-use SSH command
 
 ## Security
 
 - SSH access is controlled via Azure AD authentication
+- SSH private keys are securely stored in Azure Key Vault
 - Network Security Group restricts access to SSH port 22
 - Role-based access control (RBAC) manages VM administrator permissions
-- No SSH keys are stored in the repository
+- Terraform state stored remotely in Azure Blob Storage
+- No sensitive data stored in the repository
 
 ## Clean Up
 
