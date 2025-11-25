@@ -28,6 +28,13 @@ variable "admin_username" {
   default     = "azureuser"
 }
 
+variable "admin_ssh_public_key" {
+  description = "SSH public key for admin user. If empty, a new key will be generated."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "vnet_address_space" {
   description = "Address space for the virtual network"
   type        = list(string)

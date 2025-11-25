@@ -24,6 +24,7 @@ module "vm_infrastructure" {
   vm_name               = var.vm_name
   vm_size               = var.vm_size
   admin_username        = var.admin_username
+  admin_ssh_public_key  = var.admin_ssh_public_key
   vnet_address_space    = var.vnet_address_space
   subnet_address_prefix = var.subnet_address_prefix
   admin_users           = var.admin_users
