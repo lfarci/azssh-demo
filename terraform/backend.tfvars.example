@@ -1,8 +1,0 @@
-# Backend configuration for Azure Storage
-# Copy this file to backend.tfvars and fill in the values
-# Use with: terraform init -backend-config=backend.tfvars
-
-resource_group_name  = "rg-terraform-state"
-storage_account_name = "tfstatexxxxxx"  # Must be globally unique
-container_name       = "tfstate"
-key                  = "azssh-demo.tfstate"

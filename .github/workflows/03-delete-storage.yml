@@ -1,0 +1,105 @@
+name: Delete Storage Account
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscription_id:
+        description: 'Azure Subscription ID'
+        required: true
+        type: string
+      resource_group_name:
+        description: 'Resource group name containing the storage account'
+        required: true
+        type: string
+      storage_account_name:
+        description: 'Name of the storage account to delete'
+        required: true
+        type: string
+      delete_resource_group:
+        description: 'Also delete the resource group (yes/no)'
+        required: false
+        type: string
+        default: 'no'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  delete-storage:
+    name: Delete Storage Account
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ inputs.subscription_id }}
+
+      - name: Verify Storage Account Exists
+        id: verify
+        run: |
+          STORAGE_NAME="${{ inputs.storage_account_name }}"
+          RG_NAME="${{ inputs.resource_group_name }}"
+          
+          if az storage account show --name "$STORAGE_NAME" --resource-group "$RG_NAME" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Storage account $STORAGE_NAME found in resource group $RG_NAME"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Storage account $STORAGE_NAME not found in resource group $RG_NAME"
+          fi
+
+      - name: Delete Storage Account
+        if: steps.verify.outputs.exists == 'true'
+        run: |
+          STORAGE_NAME="${{ inputs.storage_account_name }}"
+          RG_NAME="${{ inputs.resource_group_name }}"
+          
+          echo "Deleting storage account $STORAGE_NAME..."
+          az storage account delete \
+            --name "$STORAGE_NAME" \
+            --resource-group "$RG_NAME" \
+            --yes
+          
+          echo "Storage account $STORAGE_NAME deleted successfully"
+
+      - name: Delete Resource Group
+        if: inputs.delete_resource_group == 'yes'
+        run: |
+          RG_NAME="${{ inputs.resource_group_name }}"
+          
+          if az group show --name "$RG_NAME" &>/dev/null; then
+            echo "Deleting resource group $RG_NAME..."
+            az group delete \
+              --name "$RG_NAME" \
+              --yes \
+              --no-wait
+            echo "Resource group deletion initiated"
+          else
+            echo "Resource group $RG_NAME not found"
+          fi
+
+      - name: Display Deletion Summary
+        run: |
+          echo "### Storage Account Deletion Complete 🗑️" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.verify.outputs.exists }}" == "true" ]; then
+            echo "**Storage Account:** \`${{ inputs.storage_account_name }}\` ✅ Deleted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Storage Account:** \`${{ inputs.storage_account_name }}\` ⚠️ Not found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "**Resource Group:** \`${{ inputs.resource_group_name }}\`" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ inputs.delete_resource_group }}" == "yes" ]; then
+            echo "**Resource Group Deletion:** ✅ Initiated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Resource Group Deletion:** ❌ Skipped" >> $GITHUB_STEP_SUMMARY
+          fi

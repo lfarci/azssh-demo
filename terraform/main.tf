@@ -28,7 +28,7 @@ provider "azurerm" {
 }
 
 locals {
-  # Compute resource names based on location and workflow name
+  # Compute resource names based on location and workload name
   location_short = {
     "eastus"      = "eus"
     "westus"      = "wus"
@@ -37,16 +37,26 @@ locals {
     "westeurope"  = "weu"
   }
   location_code       = lookup(local.location_short, var.location, substr(var.location, 0, 3))
-  resource_group_name = "rg-${var.workflow_name}-${local.location_code}"
-  vm_name             = "vm-${var.workflow_name}-${local.location_code}"
+  resource_group_name = "rg-${var.workload_name}-${local.location_code}"
+  vm_name             = "vm-${var.workload_name}-${local.location_code}"
   # Key Vault name uses random string for global uniqueness (max 24 chars)
-  keyvault_name = "kv-${var.workflow_name}-${local.location_code}-${random_string.keyvault_suffix.result}"
+  keyvault_name = "kv-${var.workload_name}-${local.location_code}-${random_string.keyvault_suffix.result}"
+  # Storage account name: globally unique, alphanumeric only, 3-24 chars
+  storage_account_name = "st${replace(var.workload_name, "-", "")}${local.location_code}${random_string.storage_suffix.result}"
 }
 
 resource "random_string" "keyvault_suffix" {
   length  = 6
   special = false
   upper   = false
+}
+
+resource "random_string" "storage_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+  numeric = true
+  lower   = true
 }
 
 module "vm_infrastructure" {

@@ -3,14 +3,14 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "workflow_name" {
-  description = "Name of the workflow (used to compute resource names). Max 12 chars for Key Vault name limits."
+variable "workload_name" {
+  description = "Name of the workload (used to compute resource names). Max 12 chars for Key Vault name limits."
   type        = string
   default     = "azssh-demo"
 
   validation {
-    condition     = length(var.workflow_name) <= 12
-    error_message = "The workflow_name must be 12 characters or less to ensure Key Vault name stays within Azure's 24-character limit."
+    condition     = length(var.workload_name) <= 12
+    error_message = "The workload_name must be 12 characters or less to ensure Key Vault name stays within Azure's 24-character limit."
   }
 }
 
@@ -64,4 +64,28 @@ variable "tags" {
     Environment = "Demo"
     Purpose     = "Azure SSH Testing"
   }
+}
+
+variable "storage_account_tier" {
+  description = "Storage account tier (Standard or Premium)"
+  type        = string
+  default     = "Standard"
+}
+
+variable "storage_replication_type" {
+  description = "Storage account replication type (LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS)"
+  type        = string
+  default     = "LRS"
+}
+
+variable "storage_container_name" {
+  description = "Name of the blob container to create"
+  type        = string
+  default     = "demo-container"
+}
+
+variable "storage_container_access_type" {
+  description = "Access level for the container (private, blob, or container)"
+  type        = string
+  default     = "private"
 }

@@ -1,0 +1,158 @@
+name: Deploy Storage Account
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscription_id:
+        description: 'Azure Subscription ID'
+        required: true
+        type: string
+      workload_name:
+        description: 'Workload name (used to compute resource names)'
+        required: true
+        type: string
+        default: 'azssh-demo'
+      location:
+        description: 'Azure region for resources'
+        required: true
+        type: string
+        default: 'eastus'
+      resource_group_name:
+        description: 'Resource group name for the storage account'
+        required: true
+        type: string
+      storage_container_name:
+        description: 'Name of the blob container'
+        required: false
+        type: string
+        default: 'tfstate'
+      storage_replication_type:
+        description: 'Storage replication type (LRS, GRS, RAGRS, ZRS)'
+        required: false
+        type: string
+        default: 'LRS'
+      admin_users:
+        description: 'Comma-separated list of Azure AD user object IDs for storage access'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-storage:
+    name: Deploy Storage Account
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ inputs.subscription_id }}
+
+      - name: Generate Storage Account Name
+        id: gen_names
+        run: |
+          LOCATION_SHORT="${{ inputs.location }}"
+          case "$LOCATION_SHORT" in
+            eastus) LOCATION_SHORT="eus";;
+            westus) LOCATION_SHORT="wus";;
+            centralus) LOCATION_SHORT="cus";;
+            northeurope) LOCATION_SHORT="neu";;
+            westeurope) LOCATION_SHORT="weu";;
+            *) LOCATION_SHORT="${LOCATION_SHORT:0:3}";;
+          esac
+          
+          WORKLOAD_CLEAN=$(echo "${{ inputs.workload_name }}" | tr -d '-')
+          RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+          STORAGE_NAME="st${WORKLOAD_CLEAN}${LOCATION_SHORT}${RANDOM_SUFFIX}"
+          
+          echo "storage_account_name=$STORAGE_NAME" >> $GITHUB_OUTPUT
+          echo "Generated storage account name: $STORAGE_NAME"
+
+      - name: Create or Update Storage Account
+        id: create_storage
+        run: |
+          STORAGE_NAME="${{ steps.gen_names.outputs.storage_account_name }}"
+          RG_NAME="${{ inputs.resource_group_name }}"
+          LOCATION="${{ inputs.location }}"
+          SKU="${{ inputs.storage_replication_type }}"
+          
+          # Create resource group if it doesn't exist
+          if ! az group show --name "$RG_NAME" &>/dev/null; then
+            echo "Creating resource group $RG_NAME..."
+            az group create --name "$RG_NAME" --location "$LOCATION"
+          else
+            echo "Resource group $RG_NAME already exists"
+          fi
+          
+          # Create storage account
+          echo "Creating storage account $STORAGE_NAME..."
+          az storage account create \
+            --name "$STORAGE_NAME" \
+            --resource-group "$RG_NAME" \
+            --location "$LOCATION" \
+            --sku "Standard_$SKU" \
+            --kind StorageV2 \
+            --allow-blob-public-access false \
+            --min-tls-version TLS1_2
+          
+          # Get storage account key
+          STORAGE_KEY=$(az storage account keys list \
+            --resource-group "$RG_NAME" \
+            --account-name "$STORAGE_NAME" \
+            --query '[0].value' -o tsv)
+          
+          # Create container
+          CONTAINER_NAME="${{ inputs.storage_container_name }}"
+          echo "Creating container $CONTAINER_NAME..."
+          az storage container create \
+            --name "$CONTAINER_NAME" \
+            --account-name "$STORAGE_NAME" \
+            --account-key "$STORAGE_KEY"
+          
+          # Get blob endpoint
+          BLOB_ENDPOINT=$(az storage account show \
+            --name "$STORAGE_NAME" \
+            --resource-group "$RG_NAME" \
+            --query 'primaryEndpoints.blob' -o tsv)
+          
+          echo "blob_endpoint=$BLOB_ENDPOINT" >> $GITHUB_OUTPUT
+
+      - name: Grant Access to Admin Users
+        if: inputs.admin_users != ''
+        run: |
+          STORAGE_NAME="${{ steps.gen_names.outputs.storage_account_name }}"
+          RG_NAME="${{ inputs.resource_group_name }}"
+          STORAGE_ID=$(az storage account show \
+            --name "$STORAGE_NAME" \
+            --resource-group "$RG_NAME" \
+            --query 'id' -o tsv)
+          
+          IFS=',' read -ra USERS <<< "${{ inputs.admin_users }}"
+          for USER_ID in "${USERS[@]}"; do
+            USER_ID=$(echo "$USER_ID" | xargs)
+            echo "Granting Storage Blob Data Contributor role to $USER_ID..."
+            az role assignment create \
+              --assignee "$USER_ID" \
+              --role "Storage Blob Data Contributor" \
+              --scope "$STORAGE_ID"
+          done
+
+      - name: Display Storage Account Details
+        run: |
+          echo "### Storage Account Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Resource Group:** \`${{ inputs.resource_group_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Storage Account Name:** \`${{ steps.gen_names.outputs.storage_account_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Container Name:** \`${{ inputs.storage_container_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Blob Endpoint:** \`${{ steps.create_storage.outputs.blob_endpoint }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Location:** \`${{ inputs.location }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Replication:** \`${{ inputs.storage_replication_type }}\`" >> $GITHUB_STEP_SUMMARY
