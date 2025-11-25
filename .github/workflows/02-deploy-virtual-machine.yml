@@ -1,5 +1,5 @@
 name: Deploy Infrastructure
-run-name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Deploy' }} ${{ inputs.vm_name }} in ${{ inputs.workload_name }} (${{ inputs.location }})
+run-name: ${{ inputs.action == 'destroy' && 'Destroy' || 'Deploy' }} ${{ inputs.workload_name }} (${{ inputs.location }})
 
 on:
   workflow_dispatch:
@@ -26,11 +26,6 @@ on:
         required: true
         type: string
         default: 'eastus'
-      vm_name:
-        description: 'Name of the VM'
-        required: true
-        type: string
-        default: 'demo-vm'
       admin_users:
         description: 'Comma-separated list of Entra ID user object IDs for Key Vault and VM admin access'
         required: false
@@ -114,7 +109,6 @@ jobs:
             -var="subscription_id=${{ inputs.subscription_id }}" \
             -var="workload_name=${{ inputs.workload_name }}" \
             -var="location=${{ inputs.location }}" \
-            -var="vm_name=${{ inputs.vm_name }}" \
             ${{ steps.prep_vars.outputs.admin_users_var }}
 
   deploy:
@@ -167,14 +161,12 @@ jobs:
               -var="subscription_id=${{ inputs.subscription_id }}" \
               -var="workload_name=${{ inputs.workload_name }}" \
               -var="location=${{ inputs.location }}" \
-              -var="vm_name=${{ inputs.vm_name }}" \
               ${{ steps.prep_vars.outputs.admin_users_var }}
           else
             terraform apply -auto-approve -input=false \
               -var="subscription_id=${{ inputs.subscription_id }}" \
               -var="workload_name=${{ inputs.workload_name }}" \
               -var="location=${{ inputs.location }}" \
-              -var="vm_name=${{ inputs.vm_name }}" \
               ${{ steps.prep_vars.outputs.admin_users_var }}
           fi
 
