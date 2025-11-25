@@ -1,0 +1,106 @@
+name: Deploy Key Vault
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscription_id:
+        description: 'Azure Subscription ID'
+        required: true
+        type: string
+      workload_name:
+        description: 'Workload name (used to compute resource names)'
+        required: true
+        type: string
+        default: 'azssh-demo'
+      location:
+        description: 'Azure region for resources'
+        required: true
+        type: string
+        default: 'eastus'
+      vm_name:
+        description: 'Name of the VM (used for secret naming)'
+        required: true
+        type: string
+        default: 'demo-vm'
+      admin_users:
+        description: 'Comma-separated list of Azure AD user object IDs for Key Vault access'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-keyvault:
+    name: Deploy Key Vault
+    runs-on: ubuntu-latest
+    
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ inputs.subscription_id }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.BACKEND_RESOURCE_GROUP_NAME }}" \
+            -backend-config="storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ secrets.BACKEND_CONTAINER_NAME }}" \
+            -backend-config="key=${{ secrets.BACKEND_KEY }}"
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Prepare Terraform Variables
+        id: prep_vars
+        run: |
+          ADMIN_USERS=""
+          if [ -n "${{ inputs.admin_users }}" ]; then
+            ADMIN_USERS="-var=admin_users=[$(echo '${{ inputs.admin_users }}' | sed 's/[[:space:]]*,[[:space:]]*/","/g' | sed 's/^/"/' | sed 's/$/"/')]"
+          fi
+          echo "admin_users_var=$ADMIN_USERS" >> $GITHUB_OUTPUT
+
+      - name: Terraform Plan - Key Vault Module
+        id: plan
+        run: |
+          terraform plan -no-color -input=false \
+            -target=module.keyvault \
+            -var="subscription_id=${{ inputs.subscription_id }}" \
+            -var="workload_name=${{ inputs.workload_name }}" \
+            -var="location=${{ inputs.location }}" \
+            -var="vm_name=${{ inputs.vm_name }}" \
+            ${{ steps.prep_vars.outputs.admin_users_var }}
+
+      - name: Terraform Apply - Key Vault Module
+        run: |
+          terraform apply -auto-approve -input=false \
+            -target=module.keyvault \
+            -var="subscription_id=${{ inputs.subscription_id }}" \
+            -var="workload_name=${{ inputs.workload_name }}" \
+            -var="location=${{ inputs.location }}" \
+            -var="vm_name=${{ inputs.vm_name }}" \
+            ${{ steps.prep_vars.outputs.admin_users_var }}
+
+      - name: Display Key Vault Details
+        run: |
+          echo "### Key Vault Deployment Complete 🔐" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Key Vault Name:** \`$(terraform output -raw keyvault_name)\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Key Vault URI:** \`$(terraform output -raw keyvault_uri)\`" >> $GITHUB_STEP_SUMMARY
